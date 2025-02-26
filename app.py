@@ -15,7 +15,8 @@ CHAT_ID = "7692585926:AAF0Wxcaco0-tc5n_n41oe6lKUB-bEg4-ic"
 def send_telegram_message(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     params = {"chat_id": CHAT_ID, "text": message}
-    requests.get(url, params=params)
+    response = requests.get(url, params=params)
+    return response.json()
 
 # Fungsi untuk mengambil data BTC dari CoinGecko API
 def get_btc_data():
@@ -88,9 +89,12 @@ def train_model(df):
     # Kirim sinyal ke Telegram
     latest_signal = df.iloc[-1]
     if latest_signal["Prediksi"] == 1:
-        send_telegram_message(f"🚀 Sinyal BELI BTC! Harga saat ini: {latest_signal['close']:.2f} IDR")
+        message = f"🚀 Sinyal BELI BTC! Harga saat ini: {latest_signal['close']:.2f} IDR"
     else:
-        send_telegram_message(f"⚠️ Sinyal JUAL BTC! Harga saat ini: {latest_signal['close']:.2f} IDR")
+        message = f"⚠️ Sinyal JUAL BTC! Harga saat ini: {latest_signal['close']:.2f} IDR"
+    
+    response = send_telegram_message(message)
+    st.write("Respon Telegram:", response)
     
     return df
 
