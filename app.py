@@ -9,14 +9,13 @@ from ta.momentum import RSIIndicator
 
 # Konfigurasi Telegram
 TELEGRAM_TOKEN = "t.me/ngepirbot"
-CHAT_ID = "7692585926:AAF0Wxcaco0-tc5n_n41oe6lKUB-bEg4-ic"
+CHAT_ID = "YOUR_CHAT_ID"
 
 # Fungsi untuk mengirim notifikasi ke Telegram
 def send_telegram_message(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     params = {"chat_id": CHAT_ID, "text": message}
-    response = requests.get(url, params=params)
-    return response.json()
+    requests.get(url, params=params)
 
 # Fungsi untuk mengambil data BTC dari CoinGecko API
 def get_btc_data():
@@ -89,12 +88,9 @@ def train_model(df):
     # Kirim sinyal ke Telegram
     latest_signal = df.iloc[-1]
     if latest_signal["Prediksi"] == 1:
-        message = f"🚀 Sinyal BELI BTC! Harga saat ini: {latest_signal['close']:.2f} IDR"
+        send_telegram_message(f"🚀 Sinyal BELI BTC! Harga saat ini: {latest_signal['close']:.2f} IDR")
     else:
-        message = f"⚠️ Sinyal JUAL BTC! Harga saat ini: {latest_signal['close']:.2f} IDR"
-    
-    response = send_telegram_message(message)
-    st.write("Respon Telegram:", response)
+        send_telegram_message(f"⚠️ Sinyal JUAL BTC! Harga saat ini: {latest_signal['close']:.2f} IDR")
     
     return df
 
