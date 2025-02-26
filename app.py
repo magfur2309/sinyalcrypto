@@ -34,6 +34,11 @@ def train_model(df):
     df = df.dropna()
     X = df[["SMA", "EMA", "RSI", "MACD", "MACD_Signal"]]
     y = np.where(df["close"].shift(-1) > df["close"], 1, 0)  # 1 = beli, 0 = jual
+
+    # Periksa apakah ada nilai NaN
+    if X.isnull().sum().sum() > 0 or np.isnan(y).sum() > 0:
+        raise ValueError("Terdapat nilai NaN dalam dataset setelah preprocessing.")
+    
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X, y)
     df["Prediksi"] = model.predict(X)
@@ -43,6 +48,11 @@ def train_model(df):
 st.title("Aplikasi Sinyal BTC dengan Analisis Teknikal dan Machine Learning")
 df = get_btc_data()
 df = add_indicators(df)
+
+# Logging jumlah data sebelum training
+st.write("Jumlah data sebelum training:", len(df))
+st.write("Jumlah data setelah dropna:", len(df.dropna()))
+
 df = train_model(df)
 
 # Visualisasi data
