@@ -1,89 +1,111 @@
-import numpy as np
+import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import tensorflow as tf
-from tensorflow.keras.models import Sequential, load_model
-from tensorflow.keras.layers import LSTM, Dense, Dropout
-from sklearn.preprocessing import MinMaxScaler
-import yfinance as yf
-from sklearn.metrics import mean_squared_error
-import os
-import joblib
+import numpy as np
+import requests
+import plotly.graph_objects as go
+from sklearn.ensemble import RandomForestClassifier
+from ta.trend import SMAIndicator, EMAIndicator, MACD
+from ta.momentum import RSIIndicator
 
-# 1. Load Data BTC dari Yahoo Finance
-def load_btc_data(start='2022-01-01', end='2025-01-01'):
+# Fungsi untuk mengambil data BTC dari CoinGecko API
+def get_btc_data():
+    url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=idr&days=90&interval=daily"
+    response = requests.get(url)
+    
+    if response.status_code != 200:
+        st.error(f"Error mengambil data dari CoinGecko API: {response.status_code}")
+        return pd.DataFrame()
+    
+    data = response.json()
+    if "prices" not in data:
+        st.error("API CoinGecko tidak mengembalikan data yang valid.")
+        return pd.DataFrame()
+    
     try:
-        df = yf.download('BTC-USD', start=start, end=end)
-        return df[['Close']]
+        df = pd.DataFrame(data["prices"], columns=["timestamp", "close"])
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+        df["open"] = df["close"]
+        df["high"] = df["close"]
+        df["low"] = df["close"]
+        df["volume"] = np.nan  # CoinGecko tidak menyediakan volume pada endpoint ini
     except Exception as e:
-        print(f"Error fetching data: {e}")
-        return None
+        st.error(f"Terjadi kesalahan dalam pemrosesan data API: {e}")
+        return pd.DataFrame()
+    
+    if df.empty:
+        st.error("Dataset dari API kosong.")
+    
+    return df
 
-data = load_btc_data()
-if data is None:
-    raise ValueError("Failed to fetch BTC data")
+# Fungsi untuk menghitung indikator teknikal
+def add_indicators(df):
+    if "close" not in df.columns:
+        st.error("Kolom 'close' tidak ditemukan dalam dataset. Pastikan API mengembalikan data yang benar.")
+        return pd.DataFrame()
+    
+    df["SMA"] = SMAIndicator(df["close"], window=14).sma_indicator()
+    df["EMA"] = EMAIndicator(df["close"], window=14).ema_indicator()
+    df["RSI"] = RSIIndicator(df["close"], window=14).rsi()
+    macd = MACD(df["close"])
+    df["MACD"] = macd.macd()
+    df["MACD_Signal"] = macd.macd_signal()
+    
+    # Log jumlah NaN setelah perhitungan indikator
+    st.write("Jumlah NaN setelah perhitungan indikator:", df.isna().sum().sum())
+    
+    # Ganti dropna() dengan fillna()
+    df.fillna(method="bfill", inplace=True)  # Isi NaN dengan nilai sebelumnya
+    df.fillna(method="ffill", inplace=True)  # Isi NaN dengan nilai setelahnya
+    
+    return df
 
-# 2. Normalisasi Data
-scaler_path = "scaler.pkl"
-scaler = MinMaxScaler(feature_range=(0,1))
-if os.path.exists(scaler_path):
-    scaler = joblib.load(scaler_path)
-    data_scaled = scaler.transform(data)
-else:
-    data_scaled = scaler.fit_transform(data)
-    joblib.dump(scaler, scaler_path)
+# Fungsi untuk model prediksi menggunakan Random Forest
+def train_model(df):
+    # Logging jumlah data sebelum training
+    st.write("Jumlah data sebelum training:", len(df))
 
-# 3. Membuat Dataset untuk LSTM
-def create_sequences(data, seq_length=50):
-    X, y = [], []
-    for i in range(len(data) - seq_length):
-        X.append(data[i:i+seq_length])
-        y.append(data[i+seq_length])
-    return np.array(X), np.array(y)
+    X = df[["SMA", "EMA", "RSI", "MACD", "MACD_Signal"]]
+    y = np.where(df["close"].shift(-1) > df["close"], 1, 0)  # 1 = beli, 0 = jual
+    
+    # Periksa apakah ada NaN
+    if X.isnull().sum().sum() > 0 or np.isnan(y).sum() > 0:
+        st.error("Terdapat nilai NaN dalam dataset setelah preprocessing.")
+        return df
+    
+    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(X, y)
+    df["Prediksi"] = model.predict(X)
+    
+    return df
 
-seq_length = 50
-X, y = create_sequences(data_scaled, seq_length)
+# Streamlit UI
+st.title("Aplikasi Sinyal BTC dengan Analisis Teknikal dan Machine Learning")
+df = get_btc_data()
 
-# 4. Split Data Train & Test
-split = int(len(X) * 0.8)
-X_train, X_test = X[:split], X[split:]
-y_train, y_test = y[:split], y[split:]
+# Logging jumlah data setelah pengambilan API
+st.write("Jumlah data dari API:", len(df))
 
-# 5. Membangun Model LSTM
-model_path = "btc_lstm_model.h5"
-if os.path.exists(model_path):
-    model = load_model(model_path)
-    print("Model loaded successfully!")
-else:
-    model = Sequential([
-        LSTM(50, return_sequences=True, input_shape=(seq_length, 1)),
-        Dropout(0.2),
-        LSTM(50, return_sequences=False),
-        Dropout(0.2),
-        Dense(25),
-        Dense(1)
-    ])
-    model.compile(optimizer='adam', loss='mean_squared_error')
+if not df.empty:
+    df = add_indicators(df)
 
-    # 6. Training Model
-    history = model.fit(X_train, y_train, epochs=50, batch_size=32, validation_data=(X_test, y_test))
-    model.save(model_path)
-    print("Model saved successfully!")
+    # Logging jumlah data setelah preprocessing
+    st.write("Jumlah data setelah preprocessing:", len(df))
 
-# 7. Prediksi Harga BTC
-predictions = model.predict(X_test)
-predictions = scaler.inverse_transform(predictions)
+    df = train_model(df)
 
-y_test_actual = scaler.inverse_transform(y_test.reshape(-1, 1))
-
-# 8. Evaluasi Model
-mse = mean_squared_error(y_test_actual, predictions)
-rmse = np.sqrt(mse)
-print(f'MSE: {mse}, RMSE: {rmse}')
-
-# 9. Plot Hasil Prediksi
-plt.figure(figsize=(12,6))
-plt.plot(y_test_actual, label='Actual Price')
-plt.plot(predictions, label='Predicted Price')
-plt.legend()
-plt.show()
+    if not df.empty:
+        # Visualisasi data
+        fig = go.Figure()
+        fig.add_trace(go.Candlestick(x=df["timestamp"], open=df["open"], high=df["high"], 
+                                     low=df["low"], close=df["close"], name="Candlestick"))
+        fig.add_trace(go.Scatter(x=df["timestamp"], y=df["SMA"], mode="lines", name="SMA"))
+        fig.add_trace(go.Scatter(x=df["timestamp"], y=df["EMA"], mode="lines", name="EMA"))
+        
+        buy_signals = df[df["Prediksi"] == 1]
+        sell_signals = df[df["Prediksi"] == 0]
+        fig.add_trace(go.Scatter(x=buy_signals["timestamp"], y=buy_signals["close"], mode="markers", 
+                                 marker=dict(color="green", size=10), name="Beli"))
+        fig.add_trace(go.Scatter(x=sell_signals["timestamp"], y=sell_signals["close"], mode="markers", 
+                                 marker=dict(color="red", size=10), name="Jual"))
+        
+        st.plotly_chart(fig)
