@@ -8,28 +8,27 @@ from ta.trend import SMAIndicator, EMAIndicator, MACD
 from ta.momentum import RSIIndicator
 
 # Fungsi untuk mengambil data BTC dari Indodax API
+# Fungsi untuk mengambil data BTC dari CoinGecko API
 def get_btc_data():
     url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=idr&days=30&interval=daily"
     response = requests.get(url)
     
     if response.status_code != 200:
-        st.error(f"Error mengambil data dari Indodax API: {response.status_code}")
+        st.error(f"Error mengambil data dari CoinGecko API: {response.status_code}")
         return pd.DataFrame()
     
-    data = response.json().get("ticker", {})
-    if not data:
-        st.error("API Indodax tidak mengembalikan data.")
+    data = response.json()
+    if "prices" not in data:
+        st.error("API CoinGecko tidak mengembalikan data yang valid.")
         return pd.DataFrame()
     
     try:
-        df = pd.DataFrame([{ 
-            "timestamp": pd.to_datetime(data["server_time"], unit='s'),
-            "open": float(data["high"]),
-            "high": float(data["high"]),
-            "low": float(data["low"]),
-            "close": float(data["last"]),
-            "volume": float(data["vol_idr"])
-        }])
+        df = pd.DataFrame(data["prices"], columns=["timestamp", "close"])
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+        df["open"] = df["close"]
+        df["high"] = df["close"]
+        df["low"] = df["close"]
+        df["volume"] = np.nan  # CoinGecko tidak menyediakan volume pada endpoint ini
     except Exception as e:
         st.error(f"Terjadi kesalahan dalam pemrosesan data API: {e}")
         return pd.DataFrame()
@@ -38,6 +37,7 @@ def get_btc_data():
         st.error("Dataset dari API kosong.")
     
     return df
+
 
 # Fungsi untuk menghitung indikator teknikal
 def add_indicators(df):
