@@ -36,6 +36,10 @@ def get_btc_data():
 
 # Fungsi untuk menghitung indikator teknikal
 def add_indicators(df):
+    if "close" not in df.columns:
+        st.error("Kolom 'close' tidak ditemukan dalam dataset.")
+        return df
+    
     df["SMA"] = SMAIndicator(df["close"], window=14).sma_indicator()
     df["EMA"] = EMAIndicator(df["close"], window=14).ema_indicator()
     df["RSI"] = RSIIndicator(df["close"], window=14).rsi()
@@ -61,7 +65,8 @@ def train_model(df):
     
     # Periksa apakah ada nilai NaN
     if X.isnull().sum().sum() > 0 or np.isnan(y).sum() > 0:
-        raise ValueError("Terdapat nilai NaN dalam dataset setelah preprocessing.")
+        st.error("Terdapat nilai NaN dalam dataset setelah preprocessing.")
+        return df
     
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X, y)
