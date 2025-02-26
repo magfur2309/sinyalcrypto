@@ -8,28 +8,36 @@ from sklearn.model_selection import train_test_split
 from ta.trend import SMAIndicator, EMAIndicator, MACD
 from ta.momentum import RSIIndicator
 
-# Fungsi untuk mengambil data BTC dari Tokocrypto API
+# API CoinMarketCap
+API_KEY = "8ecffa96-9482-44ac-93e2-dd37d007c639"  # Ganti dengan API Key Anda
+CMC_URL = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
+
+# Fungsi untuk mengambil data BTC dari CoinMarketCap API
 def get_btc_data():
-    url = "https://api.tokocrypto.com/v1/market/kline?symbol=BTCIDR&interval=1d&limit=90"
-    response = requests.get(url)
-
+    params = {"symbol": "BTC", "convert": "IDR"}
+    headers = {"Accepts": "application/json", "X-CMC_PRO_API_KEY": API_KEY}
+    response = requests.get(CMC_URL, headers=headers, params=params)
+    
     if response.status_code != 200:
-        st.error(f"Error mengambil data dari Tokocrypto API: {response.status_code}")
+        st.error(f"Error mengambil data dari CoinMarketCap API: {response.status_code}")
         return pd.DataFrame()
-
+    
     data = response.json()
-    if "data" not in data or not data["data"]:
-        st.error("API Tokocrypto tidak mengembalikan data yang valid.")
-        return pd.DataFrame()
-
     try:
-        df = pd.DataFrame(data["data"], columns=["timestamp", "open", "high", "low", "close", "volume"])
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-        df[["open", "high", "low", "close", "volume"]] = df[["open", "high", "low", "close", "volume"]].astype(float)
+        price = data["data"]["BTC"]["quote"]["IDR"]["price"]
+        timestamp = pd.to_datetime(data["status"]["timestamp"])
+        df = pd.DataFrame({
+            "timestamp": [timestamp],
+            "close": [price],
+            "open": [price],
+            "high": [price],
+            "low": [price],
+            "volume": [np.nan]
+        })
     except Exception as e:
         st.error(f"Terjadi kesalahan dalam pemrosesan data API: {e}")
         return pd.DataFrame()
-
+    
     return df
 
 # Fungsi untuk menghitung indikator teknikal
@@ -44,9 +52,9 @@ def add_indicators(df):
     df["MACD"] = macd.macd()
     df["MACD_Signal"] = macd.macd_signal()
 
-    df.fillna(method="bfill", inplace=True)  # Isi NaN dengan nilai sebelumnya
-    df.fillna(method="ffill", inplace=True)  # Isi NaN dengan nilai setelahnya
-    df.dropna(inplace=True)  # Hapus baris yang masih memiliki NaN
+    df.fillna(method="bfill", inplace=True)
+    df.fillna(method="ffill", inplace=True)
+    df.dropna(inplace=True)
 
     return df
 
@@ -56,20 +64,17 @@ def train_model(df):
         return df
 
     X = df[["SMA", "EMA", "RSI", "MACD", "MACD_Signal"]]
-    y = np.where(df["close"].shift(-1) > df["close"], 1, 0)  # 1 = beli, 0 = jual
+    y = np.where(df["close"].shift(-1) > df["close"], 1, 0)
 
     if X.isnull().sum().sum() > 0 or np.isnan(y).sum() > 0:
         st.error("Terdapat nilai NaN dalam dataset setelah preprocessing.")
         return df
-
-    # Pisahkan Data Training & Testing
+    
     X_train, X_test, y_train, y_test = train_test_split(X[:-1], y[:-1], test_size=0.2, random_state=42)
-
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
-
     df["Prediksi"] = model.predict(X)
-
+    
     return df
 
 # Streamlit UI
