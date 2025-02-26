@@ -4,5 +4,4 @@ numpy
 requests
 plotly
 scikit-learn
-ta
-ta-lib
+ta lib
