@@ -7,7 +7,6 @@ from sklearn.ensemble import RandomForestClassifier
 from ta.trend import SMAIndicator, EMAIndicator, MACD
 from ta.momentum import RSIIndicator
 
-# Fungsi untuk mengambil data BTC dari Indodax API
 # Fungsi untuk mengambil data BTC dari CoinGecko API
 def get_btc_data():
     url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=idr&days=30&interval=daily"
@@ -37,7 +36,6 @@ def get_btc_data():
         st.error("Dataset dari API kosong.")
     
     return df
-
 
 # Fungsi untuk menghitung indikator teknikal
 def add_indicators(df):
