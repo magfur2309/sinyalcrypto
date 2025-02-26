@@ -32,9 +32,18 @@ def add_indicators(df):
 # Fungsi untuk model prediksi menggunakan Random Forest
 def train_model(df):
     df = df.dropna()
+    
+    # Jika dataset kosong setelah dropna, hentikan proses
+    if df.empty:
+        st.error("Dataset kosong setelah preprocessing. Periksa data yang diambil dari API.")
+        return df
+    
     X = df[["SMA", "EMA", "RSI", "MACD", "MACD_Signal"]]
     y = np.where(df["close"].shift(-1) > df["close"], 1, 0)  # 1 = beli, 0 = jual
-
+    
+    # Isi NaN jika masih ada setelah dropna
+    X = X.fillna(method='bfill').fillna(method='ffill')
+    
     # Periksa apakah ada nilai NaN
     if X.isnull().sum().sum() > 0 or np.isnan(y).sum() > 0:
         raise ValueError("Terdapat nilai NaN dalam dataset setelah preprocessing.")
@@ -55,18 +64,19 @@ st.write("Jumlah data setelah dropna:", len(df.dropna()))
 
 df = train_model(df)
 
-# Visualisasi data
-fig = go.Figure()
-fig.add_trace(go.Candlestick(x=df["timestamp"], open=df["open"], high=df["high"], 
-                             low=df["low"], close=df["close"], name="Candlestick"))
-fig.add_trace(go.Scatter(x=df["timestamp"], y=df["SMA"], mode="lines", name="SMA"))
-fig.add_trace(go.Scatter(x=df["timestamp"], y=df["EMA"], mode="lines", name="EMA"))
-
-buy_signals = df[df["Prediksi"] == 1]
-sell_signals = df[df["Prediksi"] == 0]
-fig.add_trace(go.Scatter(x=buy_signals["timestamp"], y=buy_signals["close"], mode="markers", 
-                         marker=dict(color="green", size=10), name="Beli"))
-fig.add_trace(go.Scatter(x=sell_signals["timestamp"], y=sell_signals["close"], mode="markers", 
-                         marker=dict(color="red", size=10), name="Jual"))
-
-st.plotly_chart(fig)
+if not df.empty:
+    # Visualisasi data
+    fig = go.Figure()
+    fig.add_trace(go.Candlestick(x=df["timestamp"], open=df["open"], high=df["high"], 
+                                 low=df["low"], close=df["close"], name="Candlestick"))
+    fig.add_trace(go.Scatter(x=df["timestamp"], y=df["SMA"], mode="lines", name="SMA"))
+    fig.add_trace(go.Scatter(x=df["timestamp"], y=df["EMA"], mode="lines", name="EMA"))
+    
+    buy_signals = df[df["Prediksi"] == 1]
+    sell_signals = df[df["Prediksi"] == 0]
+    fig.add_trace(go.Scatter(x=buy_signals["timestamp"], y=buy_signals["close"], mode="markers", 
+                             marker=dict(color="green", size=10), name="Beli"))
+    fig.add_trace(go.Scatter(x=sell_signals["timestamp"], y=sell_signals["close"], mode="markers", 
+                             marker=dict(color="red", size=10), name="Jual"))
+    
+    st.plotly_chart(fig)
