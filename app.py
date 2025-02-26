@@ -8,31 +8,28 @@ from sklearn.model_selection import train_test_split
 from ta.trend import SMAIndicator, EMAIndicator, MACD
 from ta.momentum import RSIIndicator
 
-# Fungsi untuk mengambil data BTC dari CoinGecko API
+# Fungsi untuk mengambil data BTC dari Tokocrypto API
 def get_btc_data():
-    url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=idr&days=90&interval=daily"
+    url = "https://api.tokocrypto.com/v1/market/kline?symbol=BTCIDR&interval=1d&limit=90"
     response = requests.get(url)
-    
+
     if response.status_code != 200:
-        st.error(f"Error mengambil data dari CoinGecko API: {response.status_code}")
+        st.error(f"Error mengambil data dari Tokocrypto API: {response.status_code}")
         return pd.DataFrame()
-    
+
     data = response.json()
-    if "prices" not in data:
-        st.error("API CoinGecko tidak mengembalikan data yang valid.")
+    if "data" not in data or not data["data"]:
+        st.error("API Tokocrypto tidak mengembalikan data yang valid.")
         return pd.DataFrame()
-    
+
     try:
-        df = pd.DataFrame(data["prices"], columns=["timestamp", "close"])
+        df = pd.DataFrame(data["data"], columns=["timestamp", "open", "high", "low", "close", "volume"])
         df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-        df["open"] = df["close"]
-        df["high"] = df["close"]
-        df["low"] = df["close"]
-        df["volume"] = np.nan  # CoinGecko tidak menyediakan volume pada endpoint ini
+        df[["open", "high", "low", "close", "volume"]] = df[["open", "high", "low", "close", "volume"]].astype(float)
     except Exception as e:
         st.error(f"Terjadi kesalahan dalam pemrosesan data API: {e}")
         return pd.DataFrame()
-    
+
     return df
 
 # Fungsi untuk menghitung indikator teknikal
@@ -64,7 +61,7 @@ def train_model(df):
     if X.isnull().sum().sum() > 0 or np.isnan(y).sum() > 0:
         st.error("Terdapat nilai NaN dalam dataset setelah preprocessing.")
         return df
-    
+
     # Pisahkan Data Training & Testing
     X_train, X_test, y_train, y_test = train_test_split(X[:-1], y[:-1], test_size=0.2, random_state=42)
 
@@ -72,7 +69,7 @@ def train_model(df):
     model.fit(X_train, y_train)
 
     df["Prediksi"] = model.predict(X)
-    
+
     return df
 
 # Streamlit UI
