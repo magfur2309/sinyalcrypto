@@ -10,13 +10,28 @@ from ta.momentum import RSIIndicator
 # Fungsi untuk mengambil data BTC dari Binance API
 def get_btc_data():
     url = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=100"
-    response = requests.get(url).json()
-    df = pd.DataFrame(response, columns=["timestamp", "open", "high", "low", "close", "volume", 
-                                         "close_time", "quote_asset_volume", "trades", 
-                                         "taker_base_vol", "taker_quote_vol", "ignore"])
+    response = requests.get(url)
+    
+    if response.status_code != 200:
+        st.error(f"Error mengambil data dari Binance API: {response.status_code}")
+        return pd.DataFrame()
+    
+    data = response.json()
+    
+    if not data:
+        st.error("API Binance tidak mengembalikan data.")
+        return pd.DataFrame()
+    
+    df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume", 
+                                     "close_time", "quote_asset_volume", "trades", 
+                                     "taker_base_vol", "taker_quote_vol", "ignore"])
     df = df[["timestamp", "open", "high", "low", "close", "volume"]]
     df["timestamp"] = pd.to_datetime(df["timestamp"], unit='ms')
     df[["open", "high", "low", "close", "volume"]] = df[["open", "high", "low", "close", "volume"]].astype(float)
+    
+    if df.empty:
+        st.error("Dataset dari API kosong.")
+    
     return df
 
 # Fungsi untuk menghitung indikator teknikal
@@ -56,6 +71,10 @@ def train_model(df):
 # Streamlit UI
 st.title("Aplikasi Sinyal BTC dengan Analisis Teknikal dan Machine Learning")
 df = get_btc_data()
+
+# Logging jumlah data setelah pengambilan API
+st.write("Jumlah data dari API:", len(df))
+
 df = add_indicators(df)
 
 # Logging jumlah data sebelum training
