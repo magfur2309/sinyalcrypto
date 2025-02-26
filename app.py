@@ -9,7 +9,7 @@ from ta.momentum import RSIIndicator
 
 # Fungsi untuk mengambil data BTC dari Indodax API
 def get_btc_data():
-    url = "https://indodax.com/api/ticker/btcidr"
+    url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=idr&days=30&interval=daily"
     response = requests.get(url)
     
     if response.status_code != 200:
