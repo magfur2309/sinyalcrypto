@@ -12,7 +12,10 @@ def get_btc_data():
     url = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=100"
     response = requests.get(url)
     
-    if response.status_code != 200:
+    if response.status_code == 451:
+        st.error("Error 451: Akses ke API Binance diblokir. Coba gunakan VPN atau API key jika diperlukan.")
+        return pd.DataFrame()
+    elif response.status_code != 200:
         st.error(f"Error mengambil data dari Binance API: {response.status_code}")
         return pd.DataFrame()
     
@@ -22,12 +25,16 @@ def get_btc_data():
         st.error("API Binance tidak mengembalikan data.")
         return pd.DataFrame()
     
-    df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume", 
-                                     "close_time", "quote_asset_volume", "trades", 
-                                     "taker_base_vol", "taker_quote_vol", "ignore"])
-    df = df[["timestamp", "open", "high", "low", "close", "volume"]]
-    df["timestamp"] = pd.to_datetime(df["timestamp"], unit='ms')
-    df[["open", "high", "low", "close", "volume"]] = df[["open", "high", "low", "close", "volume"]].astype(float)
+    try:
+        df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume", 
+                                         "close_time", "quote_asset_volume", "trades", 
+                                         "taker_base_vol", "taker_quote_vol", "ignore"])
+        df = df[["timestamp", "open", "high", "low", "close", "volume"]]
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit='ms')
+        df[["open", "high", "low", "close", "volume"]] = df[["open", "high", "low", "close", "volume"]].astype(float)
+    except Exception as e:
+        st.error(f"Terjadi kesalahan dalam pemrosesan data API: {e}")
+        return pd.DataFrame()
     
     if df.empty:
         st.error("Dataset dari API kosong.")
@@ -37,8 +44,8 @@ def get_btc_data():
 # Fungsi untuk menghitung indikator teknikal
 def add_indicators(df):
     if "close" not in df.columns:
-        st.error("Kolom 'close' tidak ditemukan dalam dataset.")
-        return df
+        st.error("Kolom 'close' tidak ditemukan dalam dataset. Pastikan API mengembalikan data yang benar.")
+        return pd.DataFrame()
     
     df["SMA"] = SMAIndicator(df["close"], window=14).sma_indicator()
     df["EMA"] = EMAIndicator(df["close"], window=14).ema_indicator()
@@ -80,27 +87,28 @@ df = get_btc_data()
 # Logging jumlah data setelah pengambilan API
 st.write("Jumlah data dari API:", len(df))
 
-df = add_indicators(df)
-
-# Logging jumlah data sebelum training
-st.write("Jumlah data sebelum training:", len(df))
-st.write("Jumlah data setelah dropna:", len(df.dropna()))
-
-df = train_model(df)
-
 if not df.empty:
-    # Visualisasi data
-    fig = go.Figure()
-    fig.add_trace(go.Candlestick(x=df["timestamp"], open=df["open"], high=df["high"], 
-                                 low=df["low"], close=df["close"], name="Candlestick"))
-    fig.add_trace(go.Scatter(x=df["timestamp"], y=df["SMA"], mode="lines", name="SMA"))
-    fig.add_trace(go.Scatter(x=df["timestamp"], y=df["EMA"], mode="lines", name="EMA"))
-    
-    buy_signals = df[df["Prediksi"] == 1]
-    sell_signals = df[df["Prediksi"] == 0]
-    fig.add_trace(go.Scatter(x=buy_signals["timestamp"], y=buy_signals["close"], mode="markers", 
-                             marker=dict(color="green", size=10), name="Beli"))
-    fig.add_trace(go.Scatter(x=sell_signals["timestamp"], y=sell_signals["close"], mode="markers", 
-                             marker=dict(color="red", size=10), name="Jual"))
-    
-    st.plotly_chart(fig)
+    df = add_indicators(df)
+
+    # Logging jumlah data sebelum training
+    st.write("Jumlah data sebelum training:", len(df))
+    st.write("Jumlah data setelah dropna:", len(df.dropna()))
+
+    df = train_model(df)
+
+    if not df.empty:
+        # Visualisasi data
+        fig = go.Figure()
+        fig.add_trace(go.Candlestick(x=df["timestamp"], open=df["open"], high=df["high"], 
+                                     low=df["low"], close=df["close"], name="Candlestick"))
+        fig.add_trace(go.Scatter(x=df["timestamp"], y=df["SMA"], mode="lines", name="SMA"))
+        fig.add_trace(go.Scatter(x=df["timestamp"], y=df["EMA"], mode="lines", name="EMA"))
+        
+        buy_signals = df[df["Prediksi"] == 1]
+        sell_signals = df[df["Prediksi"] == 0]
+        fig.add_trace(go.Scatter(x=buy_signals["timestamp"], y=buy_signals["close"], mode="markers", 
+                                 marker=dict(color="green", size=10), name="Beli"))
+        fig.add_trace(go.Scatter(x=sell_signals["timestamp"], y=sell_signals["close"], mode="markers", 
+                                 marker=dict(color="red", size=10), name="Jual"))
+        
+        st.plotly_chart(fig)
