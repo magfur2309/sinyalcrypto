@@ -7,31 +7,29 @@ from sklearn.ensemble import RandomForestClassifier
 from ta.trend import SMAIndicator, EMAIndicator, MACD
 from ta.momentum import RSIIndicator
 
-# Fungsi untuk mengambil data BTC dari Binance API
+# Fungsi untuk mengambil data BTC dari Indodax API
 def get_btc_data():
-    url = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=100"
+    url = "https://indodax.com/api/ticker/btcidr"
     response = requests.get(url)
     
-    if response.status_code == 451:
-        st.error("Error 451: Akses ke API Binance diblokir. Coba gunakan VPN atau API key jika diperlukan.")
-        return pd.DataFrame()
-    elif response.status_code != 200:
-        st.error(f"Error mengambil data dari Binance API: {response.status_code}")
+    if response.status_code != 200:
+        st.error(f"Error mengambil data dari Indodax API: {response.status_code}")
         return pd.DataFrame()
     
-    data = response.json()
-    
+    data = response.json().get("ticker", {})
     if not data:
-        st.error("API Binance tidak mengembalikan data.")
+        st.error("API Indodax tidak mengembalikan data.")
         return pd.DataFrame()
     
     try:
-        df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume", 
-                                         "close_time", "quote_asset_volume", "trades", 
-                                         "taker_base_vol", "taker_quote_vol", "ignore"])
-        df = df[["timestamp", "open", "high", "low", "close", "volume"]]
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit='ms')
-        df[["open", "high", "low", "close", "volume"]] = df[["open", "high", "low", "close", "volume"]].astype(float)
+        df = pd.DataFrame([{ 
+            "timestamp": pd.to_datetime(data["server_time"], unit='s'),
+            "open": float(data["high"]),
+            "high": float(data["high"]),
+            "low": float(data["low"]),
+            "close": float(data["last"]),
+            "volume": float(data["vol_idr"])
+        }])
     except Exception as e:
         st.error(f"Terjadi kesalahan dalam pemrosesan data API: {e}")
         return pd.DataFrame()
