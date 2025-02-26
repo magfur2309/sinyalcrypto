@@ -3,7 +3,8 @@ import requests
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-import talib
+import ta as talib
+
 
 # Konfigurasi Bot Telegram
 TOKEN = "t.me/ngepirbot"
