@@ -9,7 +9,7 @@ from ta.momentum import RSIIndicator
 
 # Fungsi untuk mengambil data BTC dari CoinGecko API
 def get_btc_data():
-    url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=idr&days=30&interval=daily"
+    url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=idr&days=90&interval=daily"
     response = requests.get(url)
     
     if response.status_code != 200:
@@ -49,24 +49,25 @@ def add_indicators(df):
     macd = MACD(df["close"])
     df["MACD"] = macd.macd()
     df["MACD_Signal"] = macd.macd_signal()
+    
+    # Log jumlah NaN setelah perhitungan indikator
+    st.write("Jumlah NaN setelah perhitungan indikator:", df.isna().sum().sum())
+    
+    # Ganti dropna() dengan fillna()
+    df.fillna(method="bfill", inplace=True)  # Isi NaN dengan nilai sebelumnya
+    df.fillna(method="ffill", inplace=True)  # Isi NaN dengan nilai setelahnya
+    
     return df
 
 # Fungsi untuk model prediksi menggunakan Random Forest
 def train_model(df):
-    df = df.dropna()
-    
-    # Jika dataset kosong setelah dropna, hentikan proses
-    if df.empty:
-        st.error("Dataset kosong setelah preprocessing. Periksa data yang diambil dari API.")
-        return df
-    
+    # Logging jumlah data sebelum training
+    st.write("Jumlah data sebelum training:", len(df))
+
     X = df[["SMA", "EMA", "RSI", "MACD", "MACD_Signal"]]
     y = np.where(df["close"].shift(-1) > df["close"], 1, 0)  # 1 = beli, 0 = jual
     
-    # Isi NaN jika masih ada setelah dropna
-    X = X.fillna(method='bfill').fillna(method='ffill')
-    
-    # Periksa apakah ada nilai NaN
+    # Periksa apakah ada NaN
     if X.isnull().sum().sum() > 0 or np.isnan(y).sum() > 0:
         st.error("Terdapat nilai NaN dalam dataset setelah preprocessing.")
         return df
@@ -74,6 +75,7 @@ def train_model(df):
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X, y)
     df["Prediksi"] = model.predict(X)
+    
     return df
 
 # Streamlit UI
@@ -86,9 +88,8 @@ st.write("Jumlah data dari API:", len(df))
 if not df.empty:
     df = add_indicators(df)
 
-    # Logging jumlah data sebelum training
-    st.write("Jumlah data sebelum training:", len(df))
-    st.write("Jumlah data setelah dropna:", len(df.dropna()))
+    # Logging jumlah data setelah preprocessing
+    st.write("Jumlah data setelah preprocessing:", len(df))
 
     df = train_model(df)
 
