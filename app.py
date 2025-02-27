@@ -35,7 +35,7 @@ def send_telegram_photo(photo_path, caption="📊 Sinyal BTC Terbaru!"):
 
 # Fungsi untuk mengambil data BTC dari CoinGecko API
 def get_btc_data():
-    url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=idr&days=90&interval=daily"
+    url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=90&interval=daily"
     response = requests.get(url)
     
     if response.status_code != 200:
