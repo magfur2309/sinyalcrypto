@@ -1,4 +1,3 @@
-import streamlit as st
 import pandas as pd
 import numpy as np
 import requests
@@ -6,16 +5,31 @@ import plotly.graph_objects as go
 from sklearn.ensemble import RandomForestClassifier
 from ta.trend import SMAIndicator, EMAIndicator, MACD
 from ta.momentum import RSIIndicator
+import datetime
+import plotly.io as pio
 
 # Telegram Bot
 TELEGRAM_TOKEN = "7692585926:AAF0Wxcaco0-tc5n_n41oe6lKUB-bEg4-ic"
-TELEGRAM_CHAT_ID = "5590432269"
+TELEGRAM_CHAT_ID = "5590432269"import streamlit as st
 
 # Fungsi untuk mengirim notifikasi ke Telegram
 def send_telegram_message(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
     requests.post(url, json=payload)
+
+# Fungsi untuk mengirim gambar ke Telegram
+def send_telegram_photo(photo_path, caption="📊 Sinyal BTC Terbaru!"):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendPhoto"
+    with open(photo_path, "rb") as photo:
+        files = {"photo": photo}
+        payload = {"chat_id": TELEGRAM_CHAT_ID, "caption": caption}
+        response = requests.post(url, data=payload, files=files)
+    
+    if response.status_code == 200:
+        print("✅ Gambar terkirim ke Telegram!")
+    else:
+        print(f"🚨 Gagal mengirim gambar! Error: {response.text}")
 
 # Fungsi untuk mengambil data BTC dari CoinGecko API
 def get_btc_data():
@@ -102,8 +116,13 @@ if not df.empty:
         
         st.plotly_chart(fig)
         
+        # Simpan dan kirim grafik ke Telegram
+        chart_path = "chart.png"
+        pio.write_image(fig, chart_path)
+        send_telegram_photo(chart_path, "📊 Sinyal BTC dengan Analisis Teknikal 📈")
+        
         # Kirim notifikasi Telegram
         if not buy_signals.empty:
-            send_telegram_message(f"🚀 Sinyal BELI: Harga BTC saat ini Rp{buy_signals['close'].iloc[-1]:,.0f}")
+            send_telegram_message(f"🚀 Sinyal BELI: Harga BTC saat ini Rp{buy_signals['close'].iloc[-1]:,.0f}\nLONG {buy_signals['close'].iloc[-1] - 500} - {buy_signals['close'].iloc[-1] - 1000}\nSL {buy_signals['close'].iloc[-1] - 1500} (-4%)")
         if not sell_signals.empty:
-            send_telegram_message(f"⚠️ Sinyal JUAL: Harga BTC saat ini Rp{sell_signals['close'].iloc[-1]:,.0f}")
+            send_telegram_message(f"⚠️ Sinyal JUAL: Harga BTC saat ini Rp{sell_signals['close'].iloc[-1]:,.0f}\nSHORT {sell_signals['close'].iloc[-1] + 500} - {sell_signals['close'].iloc[-1] + 1000}\nSL {sell_signals['close'].iloc[-1] + 1500} (-4%)")
