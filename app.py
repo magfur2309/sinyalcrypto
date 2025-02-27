@@ -8,8 +8,8 @@ from ta.trend import SMAIndicator, EMAIndicator, MACD
 from ta.momentum import RSIIndicator
 
 # Telegram Bot
-TELEGRAM_TOKEN = "t.me/ngepirbot"
-TELEGRAM_CHAT_ID = "7692585926:AAF0Wxcaco0-tc5n_n41oe6lKUB-bEg4-ic"
+TELEGRAM_TOKEN = "7692585926:AAF0Wxcaco0-tc5n_n41oe6lKUB-bEg4-ic"
+TELEGRAM_CHAT_ID = "5590432269"
 
 # Fungsi untuk mengirim notifikasi ke Telegram
 def send_telegram_message(message):
