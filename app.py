@@ -125,6 +125,6 @@ if not df.empty:
         
         # Kirim notifikasi Telegram
         if not buy_signals.empty:
-            send_telegram_message(f"🚀 Sinyal BELI: Harga BTC saat ini Rp{buy_signals['close'].iloc[-1]:,.0f}\nLONG {buy_signals['close'].iloc[-1] - 500} - {buy_signals['close'].iloc[-1] - 1000}\nSL {buy_signals['close'].iloc[-1] - 1500} (-4%)")
+            send_telegram_message(f"🚀 Sinyal BELI: Harga BTC saat ini usdt{buy_signals['close'].iloc[-1]:,.0f}\nLONG {buy_signals['close'].iloc[-1] - 500} - {buy_signals['close'].iloc[-1] - 1000}\nSL {buy_signals['close'].iloc[-1] - 1500} (-4%)")
         if not sell_signals.empty:
-            send_telegram_message(f"⚠️ Sinyal JUAL: Harga BTC saat ini Rp{sell_signals['close'].iloc[-1]:,.0f}\nSHORT {sell_signals['close'].iloc[-1] + 500} - {sell_signals['close'].iloc[-1] + 1000}\nSL {sell_signals['close'].iloc[-1] + 1500} (-4%)")
+            send_telegram_message(f"⚠️ Sinyal JUAL: Harga BTC saat ini usdt{sell_signals['close'].iloc[-1]:,.0f}\nSHORT {sell_signals['close'].iloc[-1] + 500} - {sell_signals['close'].iloc[-1] + 1000}\nSL {sell_signals['close'].iloc[-1] + 1500} (-4%)")
